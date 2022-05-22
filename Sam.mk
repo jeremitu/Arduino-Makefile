@@ -32,9 +32,9 @@ ifndef COMMON_INCLUDED
 endif
 
 ifneq ($(TEST),)
-    CORE_VER = 1.8.6
-    CMSIS_VER = 4.5.0
-    CMSIS_ATMEL_VER = 1.2.0
+    CORE_VER ?= 1.8.6
+    CMSIS_VER ?= 4.5.0
+    CMSIS_ATMEL_VER ?= 1.2.0
     ALTERNATE_CORE_PATH = $(DEPENDENCIES_DIR)/samd
     CMSIS_DIR = $(DEPENDENCIES_DIR)/CMSIS/CMSIS
     CMSIS_ATMEL_DIR = $(DEPENDENCIES_DIR)/CMSIS-Atmel/CMSIS
@@ -134,7 +134,13 @@ ifneq ($(findstring boards.txt, $(wildcard $(ALTERNATE_CORE_PATH)/*.txt)), board
 endif
 
 # add CMSIS includes
-CPPFLAGS += -I$(CMSIS_DIR)/Include/
+ifneq ($(wildcard $(CMSIS_DIR)/Include),)
+    CPPFLAGS += -I$(CMSIS_DIR)/Include/
+else
+    # JJ newer CMSIS
+    CPPFLAGS += -I$(CMSIS_DIR)/Core/Include
+    CPPFLAGS += -I$(CMSIS_DIR)/DSP/Include
+endif
 CPPFLAGS += -I$(CMSIS_ATMEL_DIR)/Device/ATMEL
 # path for Cortex library
 LIB_PATH  =  $(CMSIS_DIR)/Lib/GCC
@@ -442,7 +448,13 @@ ifeq ($(findstring arduino_due, $(strip $(VARIANT))), arduino_due)
     OTHER_LIBS += $(ALTERNATE_CORE_PATH)/variants/$(VARIANT)/libsam_sam3x8e_gcc_rel.a
 else
     LDFLAGS += --specs=nano.specs --specs=nosys.specs -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -Wl,--start-group
-    LDFLAGS += -larm_cortexM0l_math -L$(LIB_PATH) -lm
+    ifeq ($(findstring m4, $(strip $(VARIANT))), m4)
+      # M4
+      LDFLAGS += -L$(LIB_PATH) -L$(ALTERNATE_CORE_PATH)/variants/$(VARIANT) -larm_cortexM4lf_math -lm -mfloat-abi=hard -mfpu=fpv4-sp-d16
+    else
+      LDFLAGS += -larm_cortexM0l_math -L$(LIB_PATH) -lm
+    endif
+    
 endif
 
 # OpenOCD reset command only for now
